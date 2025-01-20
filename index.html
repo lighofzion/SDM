@@ -65,17 +65,17 @@
         let supabaseClient;
 
         async function getEnvironmentVariables() {
-            // This function simulates an API endpoint response
+            // Use string interpolation for environment variables
             return {
-                SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
-                SUPABASE_KEY: process.env.NEXT_PUBLIC_SUPABASE_KEY
+                SUPABASE_URL: '${NEXT_PUBLIC_SUPABASE_URL}',
+                SUPABASE_KEY: '${NEXT_PUBLIC_SUPABASE_KEY}'
             };
         }
 
         async function initializeSupabase() {
             try {
                 const config = await getEnvironmentVariables();
-                
+
                 if (!config.SUPABASE_URL || !config.SUPABASE_KEY) {
                     throw new Error('Missing required Supabase configuration');
                 }
@@ -157,6 +157,12 @@
             }
         }
 
+        // Check connection when page loads
+        document.addEventListener('DOMContentLoaded', checkConnection);
+    </script>
+</body>
+
+</html>
         // Check connection when page loads
         document.addEventListener('DOMContentLoaded', checkConnection);
     </script>
