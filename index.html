@@ -63,10 +63,23 @@
     <div id="userTable"></div>
 
     <script>
-        // Initialize Supabase client with config values
-        const supabaseUrl = config.SUPABASE_URL;
-        const supabaseKey = config.SUPABASE_KEY;
-        const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
+        // Initialize Supabase client with window config
+        const supabaseClient = supabase.createClient(
+            window.SUPABASE_CONFIG.SUPABASE_URL,
+            window.SUPABASE_CONFIG.SUPABASE_KEY
+        );
+
+        async function initializeSupabase() {
+            try {
+                const response = await fetch('/api/config');
+                const config = await response.json();
+                supabaseClient = supabase.createClient(config.SUPABASE_URL, config.SUPABASE_KEY);
+                return true;
+            } catch (error) {
+                console.error('Failed to initialize Supabase:', error);
+                return false;
+            }
+        }
 
         async function fetchAndDisplayuser() {
             try {
@@ -110,6 +123,9 @@
             const statusText = document.getElementById('statusText');
 
             try {
+                if (!await initializeSupabase()) {
+                    throw new Error('Failed to initialize Supabase');
+                }
                 const { data, error } = await supabaseClient
                     .from('user')  // Changed from 'schoolmanagement.user' to 'user'
                     .select('*')

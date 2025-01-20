@@ -2,12 +2,25 @@
     "version": 2,
     "builds": [
         {
+            "src": "build.js",
+            "use": "@vercel/node",
+            "config": {
+                "buildCommand": "node build.js"
+            }
+        },
+        {
             "src": "*.html",
             "use": "@vercel/static"
         },
         {
             "src": "*.js",
             "use": "@vercel/static"
+        }
+    ],
+    "routes": [
+        {
+            "src": "/api/(.*)",
+            "dest": "/api/$1"
         }
     ]
 }
