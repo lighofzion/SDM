@@ -6,7 +6,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Supabase user</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="config.js"></script>
     <style>
         .connection-status {
             display: flex;
@@ -63,17 +62,28 @@
     <div id="userTable"></div>
 
     <script>
-        // Initialize Supabase client with window config
-        const supabaseClient = supabase.createClient(
-            window.SUPABASE_CONFIG.SUPABASE_URL,
-            window.SUPABASE_CONFIG.SUPABASE_KEY
-        );
+        let supabaseClient;
+
+        async function getEnvironmentVariables() {
+            // This function simulates an API endpoint response
+            return {
+                SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
+                SUPABASE_KEY: process.env.NEXT_PUBLIC_SUPABASE_KEY
+            };
+        }
 
         async function initializeSupabase() {
             try {
-                const response = await fetch('/api/config');
-                const config = await response.json();
-                supabaseClient = supabase.createClient(config.SUPABASE_URL, config.SUPABASE_KEY);
+                const config = await getEnvironmentVariables();
+                
+                if (!config.SUPABASE_URL || !config.SUPABASE_KEY) {
+                    throw new Error('Missing required Supabase configuration');
+                }
+
+                supabaseClient = supabase.createClient(
+                    config.SUPABASE_URL,
+                    config.SUPABASE_KEY
+                );
                 return true;
             } catch (error) {
                 console.error('Failed to initialize Supabase:', error);
