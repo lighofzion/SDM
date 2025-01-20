@@ -64,26 +64,16 @@
     <script>
         let supabaseClient;
 
-        async function getEnvironmentVariables() {
-            // Use string interpolation for environment variables
-            return {
-                SUPABASE_URL: '${NEXT_PUBLIC_SUPABASE_URL}',
-                SUPABASE_KEY: '${NEXT_PUBLIC_SUPABASE_KEY}'
-            };
-        }
+        // Direct initialization without environment variables
+        const SUPABASE_URL = 'YOUR_SUPABASE_PROJECT_URL'; // Replace with your actual URL
+        const SUPABASE_KEY = 'YOUR_SUPABASE_ANON_KEY';    // Replace with your actual anon key
 
         async function initializeSupabase() {
             try {
-                const config = await getEnvironmentVariables();
-
-                if (!config.SUPABASE_URL || !config.SUPABASE_KEY) {
-                    throw new Error('Missing required Supabase configuration');
-                }
-
-                supabaseClient = supabase.createClient(
-                    config.SUPABASE_URL,
-                    config.SUPABASE_KEY
-                );
+                supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+                // Test the connection
+                const { data, error } = await supabaseClient.from('user').select('count').single();
+                if (error) throw error;
                 return true;
             } catch (error) {
                 console.error('Failed to initialize Supabase:', error);
@@ -157,12 +147,6 @@
             }
         }
 
-        // Check connection when page loads
-        document.addEventListener('DOMContentLoaded', checkConnection);
-    </script>
-</body>
-
-</html>
         // Check connection when page loads
         document.addEventListener('DOMContentLoaded', checkConnection);
     </script>
