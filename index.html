@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Supabase user</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        .connection-status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+        }
+
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background-color: gray;
+        }
+
+        .status-indicator.connected {
+            background-color: #4CAF50;
+        }
+
+        .status-indicator.disconnected {
+            background-color: #f44336;
+        }
+
+        /* Table styles */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        th,
+        td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #f2f2f2;
+        }
+
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="connection-status">
+        <div class="status-indicator" id="statusIndicator"></div>
+        <span id="statusText">Checking connection...</span>
+    </div>
+    <div id="userTable"></div>
+
+    <script>
+        // Initialize Supabase client with environment variables
+        const supabaseUrl = process.env.SUPABASE_URL;
+        const supabaseKey = process.env.SUPABASE_KEY;
+        const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
+
+        async function fetchAndDisplayuser() {
+            try {
+                const { data: user, error } = await supabaseClient
+                    .from('user')  // Changed from 'schoolmanagement.user' to 'user'
+                    .select('*');
+
+                if (error) throw error;
+                if (!user || user.length === 0) {
+                    document.getElementById('userTable').innerHTML = '<p>No user found</p>';
+                    return;
+                }
+
+                const tableHTML = `
+                    <table>
+                        <thead>
+                            <tr>
+                                ${Object.keys(user[0] || {}).map(key => `<th>${key}</th>`).join('')}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${user.map(user => `
+                                <tr>
+                                    ${Object.values(user).map(value => `<td>${value || ''}</td>`).join('')}
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+
+                document.getElementById('userTable').innerHTML = tableHTML;
+
+            } catch (error) {
+                console.error('Error fetching user:', error);
+                document.getElementById('userTable').innerHTML = `<p>Error loading user: ${error.message}</p>`;
+            }
+        }
+
+        async function checkConnection() {
+            const statusIndicator = document.getElementById('statusIndicator');
+            const statusText = document.getElementById('statusText');
+
+            try {
+                const { data, error } = await supabaseClient
+                    .from('user')  // Changed from 'schoolmanagement.user' to 'user'
+                    .select('*')
+                    .limit(1);
+
+                if (error) throw error;
+
+                statusIndicator.classList.add('connected');
+                statusIndicator.classList.remove('disconnected');
+                statusText.textContent = 'Connected to Supabase';
+
+                // After successful connection, fetch and display user
+                fetchAndDisplayuser();
+            } catch (error) {
+                statusIndicator.classList.add('disconnected');
+                statusIndicator.classList.remove('connected');
+                statusText.textContent = `Failed to connect to Supabase: ${error.message}`;
+                console.error('Connection error:', error);
+            }
+        }
+
+        // Check connection when page loads
+        document.addEventListener('DOMContentLoaded', checkConnection);
+    </script>
+</body>
+
+</html>
