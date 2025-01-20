@@ -1,10 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Supabase user</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="config.js"></script>
     <style>
         .connection-status {
             display: flex;
@@ -61,9 +63,9 @@
     <div id="userTable"></div>
 
     <script>
-        // Initialize Supabase client with environment variables
-        const supabaseUrl = process.env.SUPABASE_URL;
-        const supabaseKey = process.env.SUPABASE_KEY;
+        // Initialize Supabase client with config values
+        const supabaseUrl = config.SUPABASE_URL;
+        const supabaseKey = config.SUPABASE_KEY;
         const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
 
         async function fetchAndDisplayuser() {
