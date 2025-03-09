@@ -1,0 +1,4 @@
+fuzzywuzzy==0.18.0
+googletrans==4.0.0rc1 
+nest_asyncio
+sqlalchemy==1.3.23
