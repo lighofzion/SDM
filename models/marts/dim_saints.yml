@@ -1,0 +1,29 @@
+version: 2
+models:
+  - name: "dim_saints"
+    tests:
+        - dbt_utils.unique_combination_of_columns:
+                  combination_of_columns:
+                    - ID
+                    - name
+    description: '{{ doc("dim_saints") }}'
+    columns:
+        - name: ID
+          tests:
+               - not_null
+          description: Unique identifier for the saint
+        - name: name
+          tests:
+               - not_null
+          description: Name of the saint
+        - name: team
+          description: Team of the saint
+        - name: team_id
+          description: Team ID of the saint
+        - name: team_name
+          description: Team name of the saint
+        - name: region
+          description: Region of the saint
+        - name: department
+          description: Department of the saint
+        

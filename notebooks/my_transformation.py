@@ -70,8 +70,9 @@ def read_spreadsheet_with_fuzzy_matching(file_path, sheet_name=None, target_colu
         else:
             new_columns[col] = col
     df.rename(columns=new_columns, inplace=True)
-    # Normalize column names
-    df.columns = df.columns.str.lower().str.strip()
+    
+    # Normalize column names: lowercase, strip spaces, replace spaces with underscores
+    df.columns = df.columns.str.lower().str.strip().str.replace(" ", "_")
 
     if not target_columns:
         return df
