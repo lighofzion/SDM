@@ -10,10 +10,6 @@ from sqlalchemy import create_engine, MetaData, Table, Column, String, DateTime,
 from sqlalchemy.dialects.postgresql import insert
 from fuzzywuzzy import process
 from googletrans import Translator
-from dotenv import load_dotenv
-
-# Load environment variables from .env file
-load_dotenv()
 
 # Suppress warnings and enable nested asyncio
 warnings.filterwarnings('ignore')
@@ -129,8 +125,8 @@ def upsert_data(engine, schema_name, table_name, df):
     ETL logic:
       - For new records, both inserted_at and updated_at are set to the current timestamp.
       - For existing records, compare all non-ETL columns.
-          - If differences are found, update the record (preserving inserted_at and updating updated_at).
-          - If no differences are found, leave the record unchanged.
+          - If there are differences, update the record (update updated_at only, preserve inserted_at).
+          - If there are no differences, leave the record unchanged.
     """
     metadata = MetaData()
     table = Table(table_name, metadata, autoload_with=engine, schema=schema_name)
@@ -143,15 +139,16 @@ def upsert_data(engine, schema_name, table_name, df):
     # Build update mapping for columns (exclude primary key and inserted_at)
     update_dict = {col.name: getattr(stmt.excluded, col.name)
                    for col in table.columns if col.name not in ['scj_number', 'inserted_at', 'updated_at']}
-    # Always update updated_at to current timestamp on conflict when changes occur
+    # Always update updated_at when a change is detected
     update_dict['updated_at'] = datetime.now()
     
-    # Build a condition to update only if any non-ETL field has changed using is_distinct_from
+    # Build a condition that checks if any non-ETL column is different using is_distinct_from (to handle NULLs)
     compare_conditions = []
     for col in table.columns:
         if col.name not in ['scj_number', 'inserted_at', 'updated_at']:
             compare_conditions.append(col.is_distinct_from(getattr(stmt.excluded, col.name)))
     if compare_conditions:
+        from sqlalchemy import or_
         where_condition = or_(*compare_conditions)
     else:
         where_condition = None
@@ -166,7 +163,7 @@ def upsert_data(engine, schema_name, table_name, df):
     print(f"Upserted {len(records)} records (inserted new or updated changed ones).")
 
 def main():
-    # Build the file path dynamically:
+    # Build the file path dynamically: assuming the script is in a subfolder (e.g., "models") and the data folder is one level up.
     current_dir = Path(__file__).resolve().parent
     data_folder = current_dir.parent / "data"
     file_path = data_folder / "raw_data.csv"
@@ -202,9 +199,9 @@ def main():
 
     # Set ETL columns:
     current_ts = datetime.now()
-    # For new records, inserted_at is set; for existing records, it will be preserved
+    # For new records, inserted_at will be set. For existing records, it will be preserved.
     df['inserted_at'] = current_ts  
-    df['updated_at'] = current_ts   # updated_at is updated if any non-ETL field changes
+    df['updated_at'] = current_ts   # updated_at will be updated only if any non-ETL fields change
 
     print("\n=== Data Overview ===")
     print(f"Rows: {df.shape[0]}, Columns: {df.shape[1]}")
@@ -213,13 +210,13 @@ def main():
     print("\n=== Data Preview ===")
     print(df.head())
 
-    # Database connection using credentials from the .env file
+    # Database connection parameters (update these with from environment variables)
     db_params = {
-        'host': os.getenv("DB_HOST"),
-        'port': os.getenv("DB_PORT"),
-        'dbname': os.getenv("DB_NAME"),
-        'user': os.getenv("DB_USER"),
-        'password': os.getenv("DB_PASSWORD")
+        'host': os.getenv('DB_HOST'),
+        'port': os.getenv('DB_PORT'),
+        'dbname': os.getenv('DB_NAME'),
+        'user': os.getenv('DB_USER'),
+        'password': os.getenv('DB_PASSWORD')
     }
     schema_name = 'public'
     table_name = 'staging_data'
@@ -233,7 +230,9 @@ def main():
     # Ensure the target table exists with our ETL columns
     create_table_if_not_exists(engine, schema_name, table_name, df)
 
-    # Upsert new data: new records get inserted; changed records have updated_at refreshed
+    # Upsert new data:
+    # - New records will be inserted with inserted_at and updated_at set.
+    # - Existing records will be updated (if any non-ETL changes exist) and only updated_at will change.
     upsert_data(engine, schema_name, table_name, df)
 
     print("\n=== Summary ===")
