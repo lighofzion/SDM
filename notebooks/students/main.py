@@ -6,23 +6,21 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.exc import SQLAlchemyError
 import os
 
-# PostgreSQL connection details
-DB_USER = os.getenv('DB_USER')  # e.g., postgres
-DB_PASSWORD = os.getenv('DB_PASSWORD')  # e.g., password
-DB_HOST = os.getenv('DB_HOST')  # e.g., localhost or IP address
-DB_PORT = os.getenv('DB_PORT')  # e.g., 5432
+# PostgreSQL connection details ge it from sys env var
+DB_USER = os.getenv('DB_USER')
+DB_PASSWORD = os.getenv('DB_PASSWORD')
+DB_HOST = os.getenv('DB_HOST')
+DB_PORT = '6543'
 DB_NAME = os.getenv('DB_NAME')
 
 # Create SQLAlchemy engine
 engine = create_engine(f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}")
-
-# Replace 'your_file.csv' with the actual path to your CSV file
+print("Database connection established ")
 current_dir = Path(__file__).resolve().parent.parent.parent.parent
 data_folder = current_dir / "data" / "March_1"
 file_path = data_folder / 'march_daniel_issac_gsn.csv'
 print(f"Using file path: {file_path}")
 
-# Extract just the filename for tracking
 file_name = file_path.name
 print(f"File name: {file_name}")
 
@@ -52,8 +50,8 @@ print(df.columns.tolist())
 # Define patterns to search for specific columns
 patterns = {
     "student_name": re.compile(r'name|student', re.IGNORECASE),
-    "mobile_phone": re.compile(r'mobile|phone', re.IGNORECASE),
-    "staff": re.compile(r'staff', re.IGNORECASE),
+    "mobile_phone": re.compile(r'mobile|phone|number', re.IGNORECASE),
+    "staff": re.compile(r'staff\s*name|staff', re.IGNORECASE),  # Updated pattern to match staff name
     "networker": re.compile(r'networker', re.IGNORECASE)
 }
 
@@ -82,6 +80,10 @@ df = df.rename(columns=column_mapping)
 # Print columns after renaming
 print("Columns after renaming:")
 print(df.columns.tolist())
+
+# After finding the staff column, clean up any numbered prefixes
+if "staff" in df.columns:
+    df["staff"] = df["staff"].astype(str).str.replace(r'^\d+\.\s*', '', regex=True).str.strip()
 
 # Normalize mobile numbers and determine country if a matching column exists
 if "mobile_phone" in df.columns:
@@ -124,7 +126,7 @@ try:
     with engine.connect() as connection:
         # Check if the table exists
         table_exists = connection.execute(text(
-            "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'iba' AND table_name = 'students')"
+            "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'iba' AND table_name = 'raw_students')"
         )).scalar()
         
         if not table_exists:
@@ -132,7 +134,7 @@ try:
             connection.execute(text("""
                 CREATE SCHEMA IF NOT EXISTS iba;
                 
-                CREATE TABLE IF NOT EXISTS iba.students (
+                CREATE TABLE IF NOT EXISTS iba.raw_students (
                     id SERIAL PRIMARY KEY,
                     student_name TEXT,
                     mobile_phone TEXT,
@@ -153,7 +155,7 @@ try:
         existing_records = {}
         result = connection.execute(text("""
             SELECT id, student_name, mobile_phone, staff, networker, country, class, source_file 
-            FROM iba.students 
+            FROM iba.raw_students 
             WHERE mobile_phone IS NOT NULL
         """))
         
@@ -245,9 +247,12 @@ try:
             required_columns = ['student_name', 'mobile_phone', 'staff', 'networker', 
                                 'country', 'class', 'source_file', 'etl_insert_dttm', 
                                 'etl_update_dttm', 'etl_user_id']
-            df_to_insert = df_to_insert[[col for col in required_columns if col in df_to_insert.columns]]
             
-            df_to_insert.to_sql('students', connection, schema='iba', if_exists='append', index=False)
+            # Make sure we only keep columns that actually exist in the DataFrame
+            available_columns = [col for col in required_columns if col in df_to_insert.columns]
+            df_to_insert = df_to_insert[available_columns]
+            
+            df_to_insert.to_sql('raw_students', connection, schema='iba', if_exists='append', index=False)
             print(f"{len(df_to_insert)} new records inserted successfully")
         
         # Update existing records
@@ -276,7 +281,7 @@ try:
                 # Execute the update statement
                 if update_fields:
                     update_stmt = text(f"""
-                        UPDATE iba.students 
+                        UPDATE iba.raw_students 
                         SET {', '.join(update_fields)} 
                         WHERE id = :id
                     """)
